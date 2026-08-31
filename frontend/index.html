@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TranslateSub - AI Video Subtitle Generator & Live Regional Translator</title>
+  <title>TranslateSub & Wispr Flow - AI Video Subtitles & Regional Voice Dictation</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,8 +22,8 @@
           </svg>
         </div>
         <div class="brand-text">
-          <span class="brand-name">Translate<span class="brand-accent">Sub</span></span>
-          <span class="brand-tag">Regional Studio</span>
+          <span class="brand-name">Translate<span class="brand-accent">Sub</span> <span class="badge-flow">FLOW</span></span>
+          <span class="brand-tag">AI Subtitles & Voice Dictation</span>
         </div>
       </div>
 
@@ -31,11 +31,15 @@
       <div class="nav-pills">
         <button id="pillFileStudio" class="nav-pill active">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          Video & File Subtitler
+          Video Subtitler
+        </button>
+        <button id="pillDictateStudio" class="nav-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+          Wispr Voice Dictation
         </button>
         <button id="pillLiveStudio" class="nav-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-          Live Stream Captions
+          Live Stream
         </button>
       </div>
 
@@ -68,10 +72,38 @@
   <section class="hero-section">
     <div class="container text-center">
       <div class="hero-badge">
-        <span class="pulse-dot"></span> Powered by OpenAI Whisper & GPT-4o-mini
+        <span class="pulse-dot"></span> Powered by Whisper-Large-v3 & Llama-3.3 / GPT-4o-mini
       </div>
-      <h1 class="hero-title">Translate & Subtitle Any Video into <span class="gradient-text">Indian Regional Languages</span></h1>
-      <p class="hero-subtitle">Generate SRT/VTT subtitles for videos, edit timestamps online, or stream live real-time captions directly in your browser.</p>
+      <h1 class="hero-title">Translate, Subtitle & Dictate in <span class="gradient-text">Indian Regional Languages</span></h1>
+      <p class="hero-subtitle">Generate timestamped video subtitles, auto-clean speech fillers, or dictate directly into Indian languages with Wispr Flow AI.</p>
+
+      <!-- Wispr Flow Global AI Settings Bar -->
+      <div class="wispr-settings-bar card">
+        <div class="wispr-setting-item">
+          <label class="wispr-label">
+            <span>✨ AI Smart Polish</span>
+            <input type="checkbox" id="globalSmartCleanup" checked>
+            <span class="toggle-track"><span class="toggle-indicator"></span></span>
+          </label>
+          <span class="wispr-hint">Removes 'um', 'uh', stutters & self-corrections</span>
+        </div>
+
+        <div class="wispr-setting-item">
+          <label class="wispr-label">Tone Mode</label>
+          <select id="globalToneSelect" class="select-sm">
+            <option value="casual" selected>Natural Spoken</option>
+            <option value="formal">Formal / Business</option>
+            <option value="summary">Key Points Summary</option>
+          </select>
+          <span class="wispr-hint">Adjusts vocabulary register</span>
+        </div>
+
+        <div class="wispr-setting-item flex-2">
+          <label class="wispr-label">Custom Glossary / Jargon</label>
+          <input type="text" id="globalGlossaryInput" placeholder="e.g. Aadhaar, UPI, Kubernetes, Nikhil" class="input-sm">
+          <span class="wispr-hint">Guarantees accurate spelling of proper nouns</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -103,8 +135,8 @@
       <div id="processingCard" class="card processing-card hidden">
         <div class="spinner"></div>
         <div class="processing-info">
-          <h4 id="processingStatusTitle">Transcribing & Translating...</h4>
-          <p id="processingStatusDesc">Whisper is extracting speech timestamps while GPT-4o-mini translates into your selected regional language.</p>
+          <h4 id="processingStatusTitle">Transcribing & Polishing Subtitles...</h4>
+          <p id="processingStatusDesc">Whisper is extracting timestamps while AI polishes fillers and translates into your target regional language.</p>
           <div class="progress-bar-container">
             <div class="progress-bar-fill" id="progressBarFill"></div>
           </div>
@@ -166,7 +198,35 @@
       </div>
     </section>
 
-    <!-- MODE 2: LIVE STREAM CAPTIONS STUDIO -->
+    <!-- MODE 2: WISPR VOICE DICTATION STUDIO -->
+    <section id="dictateStudioMode" class="studio-section">
+      <div class="dictate-container card">
+        <div class="dictate-header">
+          <div>
+            <h2>Wispr Flow Voice Dictation</h2>
+            <p class="text-muted">Speak naturally into your microphone — AI will strip out filler words, stutters, and self-corrections into polished regional script.</p>
+          </div>
+          <button id="dictateRecordBtn" class="btn btn-primary btn-lg btn-glow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+            <span>Start Dictating</span>
+          </button>
+        </div>
+
+        <div class="dictate-output-box">
+          <div class="dictate-box-header">
+            <span class="dictate-box-label">Polished Regional Output</span>
+            <button id="copyDictationBtn" class="btn btn-xs btn-outline">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy Text
+            </button>
+          </div>
+          <textarea id="dictateResultText" placeholder="Click 'Start Dictating' and speak. Your polished regional translation will appear here..." class="dictate-textarea"></textarea>
+          <div id="dictateOriginalHint" class="dictate-orig-hint"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODE 3: LIVE STREAM CAPTIONS STUDIO -->
     <section id="liveStudioMode" class="studio-section">
       <div class="live-studio-container card">
         <div class="live-header">
@@ -237,25 +297,32 @@
   <div id="extModal" class="modal-backdrop hidden">
     <div class="modal-card card">
       <div class="modal-header">
-        <h3>Chrome Extension (Manifest V3)</h3>
+        <h3>Chrome Extension & Wispr Voice Flow</h3>
         <button id="closeExtModalBtn" class="close-btn">&times;</button>
       </div>
       <div class="modal-body">
-        <p>TranslateSub includes a Manifest V3 browser extension for continuous real-time audio tab capture on YouTube, Netflix, or foreign broadcasts.</p>
+        <p>TranslateSub includes a Manifest V3 browser extension with instant voice typing and continuous tab audio capture.</p>
 
         <div class="feature-highlights">
           <div class="highlight-item">
             <span class="highlight-num">1</span>
             <div>
-              <strong>Audio Pass-Through Loopback</strong>
-              <p>Re-routes tab audio to speakers so video playback never mutes.</p>
+              <strong>🎙️ Instant Voice Dictation (Alt + Shift + V)</strong>
+              <p>Type into WhatsApp Web, Gmail, Slack, ChatGPT in 9 Indian regional languages with filler-word removal.</p>
             </div>
           </div>
           <div class="highlight-item">
             <span class="highlight-num">2</span>
             <div>
-              <strong>On-Page Floating Overlay</strong>
-              <p>Renders sleek glassmorphic captions on any webpage with auto-fading.</p>
+              <strong>🔊 Tab Audio Pass-Through Loopback</strong>
+              <p>Captures and translates tab audio without muting video playback.</p>
+            </div>
+          </div>
+          <div class="highlight-item">
+            <span class="highlight-num">3</span>
+            <div>
+              <strong>✨ On-Page Floating Caption Overlay</strong>
+              <p>Renders sleek glassmorphic subtitles directly over YouTube, Netflix, or foreign livestreams.</p>
             </div>
           </div>
         </div>

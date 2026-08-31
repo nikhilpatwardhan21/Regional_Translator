@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function startCapture({ streamId, lang, tabId }) {
+async function startCapture({ streamId, lang, tone, smartCleanup, glossary, tabId }) {
   stopCapture(); // Clean up existing session if any
 
   currentTabId = tabId;
@@ -45,8 +45,14 @@ async function startCapture({ streamId, lang, tabId }) {
   const source = audioCtx.createMediaStreamSource(mediaStream);
   source.connect(audioCtx.destination);
 
-  // 3. Setup WebSocket connection to backend
-  const wsUrl = `ws://localhost:8000/ws/translate?lang=${encodeURIComponent(lang)}`;
+  // 3. Setup WebSocket connection to backend with Wispr Flow parameters
+  const params = new URLSearchParams({
+    lang: lang || 'hi',
+    tone: tone || 'casual',
+    smart_cleanup: smartCleanup !== false ? 'true' : 'false',
+    glossary: glossary || ''
+  });
+  const wsUrl = `ws://localhost:8000/ws/translate?${params.toString()}`;
   wsConnection = new WebSocket(wsUrl);
 
   wsConnection.onopen = () => {

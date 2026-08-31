@@ -1,4 +1,4 @@
-// app.js - TranslateSub Web Studio Interactive Logic
+// app.js - TranslateSub & Wispr Flow Web Studio Interactive Logic
 
 document.addEventListener('DOMContentLoaded', () => {
   const BACKEND_BASE = window.location.origin;
@@ -15,13 +15,26 @@ document.addEventListener('DOMContentLoaded', () => {
   let animFrameId = null;
   let isLiveActive = false;
 
+  // Dictation State
+  let isDictating = false;
+  let dictateStream = null;
+  let dictateRecorder = null;
+  let dictateChunks = [];
+
   // DOM Elements - Navigation & Modes
   const pillFileStudio = document.getElementById('pillFileStudio');
+  const pillDictateStudio = document.getElementById('pillDictateStudio');
   const pillLiveStudio = document.getElementById('pillLiveStudio');
   const fileStudioMode = document.getElementById('fileStudioMode');
+  const dictateStudioMode = document.getElementById('dictateStudioMode');
   const liveStudioMode = document.getElementById('liveStudioMode');
   const globalLangSelect = document.getElementById('globalLangSelect');
   const liveTargetLang = document.getElementById('liveTargetLang');
+
+  // DOM Elements - Wispr Flow Global Controls
+  const globalSmartCleanup = document.getElementById('globalSmartCleanup');
+  const globalToneSelect = document.getElementById('globalToneSelect');
+  const globalGlossaryInput = document.getElementById('globalGlossaryInput');
 
   // DOM Elements - File Studio
   const dropzone = document.getElementById('dropzone');
@@ -40,6 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportFormatSelect = document.getElementById('exportFormatSelect');
   const downloadSubBtn = document.getElementById('downloadSubBtn');
 
+  // DOM Elements - Dictate Studio
+  const dictateRecordBtn = document.getElementById('dictateRecordBtn');
+  const dictateResultText = document.getElementById('dictateResultText');
+  const dictateOriginalHint = document.getElementById('dictateOriginalHint');
+  const copyDictationBtn = document.getElementById('copyDictationBtn');
+
   // DOM Elements - Live Studio
   const toggleLiveBtn = document.getElementById('toggleLiveBtn');
   const liveAudioSource = document.getElementById('liveAudioSource');
@@ -56,21 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const gotItBtn = document.getElementById('gotItBtn');
 
   // -------------------------------------------------------------
-  // 1. Navigation & Studio Mode Switcher
+  // 1. Navigation & Mode Switcher
   // -------------------------------------------------------------
-  pillFileStudio.addEventListener('click', () => {
-    pillFileStudio.classList.add('active');
-    pillLiveStudio.classList.remove('active');
-    fileStudioMode.classList.add('active');
-    liveStudioMode.classList.remove('active');
-  });
+  function switchMode(activePill, activeSection) {
+    [pillFileStudio, pillDictateStudio, pillLiveStudio].forEach(p => p.classList.remove('active'));
+    [fileStudioMode, dictateStudioMode, liveStudioMode].forEach(s => s.classList.remove('active'));
 
-  pillLiveStudio.addEventListener('click', () => {
-    pillLiveStudio.classList.add('active');
-    pillFileStudio.classList.remove('active');
-    liveStudioMode.classList.add('active');
-    fileStudioMode.classList.remove('active');
-  });
+    activePill.classList.add('active');
+    activeSection.classList.add('active');
+  }
+
+  pillFileStudio.addEventListener('click', () => switchMode(pillFileStudio, fileStudioMode));
+  pillDictateStudio.addEventListener('click', () => switchMode(pillDictateStudio, dictateStudioMode));
+  pillLiveStudio.addEventListener('click', () => switchMode(pillLiveStudio, liveStudioMode));
 
   globalLangSelect.addEventListener('change', () => {
     liveTargetLang.value = globalLangSelect.value;
@@ -131,6 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('lang', globalLangSelect.value);
+    formData.append('tone', globalToneSelect.value);
+    formData.append('smart_cleanup', globalSmartCleanup.checked ? 'true' : 'false');
+    formData.append('glossary', globalGlossaryInput.value.trim());
 
     try {
       const response = await fetch(`${BACKEND_BASE}/api/transcribe-file`, {
@@ -275,7 +295,119 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -------------------------------------------------------------
-  // 3. Live Stream Captions Studio Mode
+  // 3. Wispr Flow Voice Dictation Studio Mode
+  // -------------------------------------------------------------
+  dictateRecordBtn.addEventListener('click', async () => {
+    if (isDictating) {
+      stopDictation();
+    } else {
+      startDictation();
+    }
+  });
+
+  async function startDictation() {
+    try {
+      dictateStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      dictateChunks = [];
+
+      const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : { mimeType: 'audio/webm' };
+
+      dictateRecorder = new MediaRecorder(dictateStream, options);
+
+      dictateRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          dictateChunks.push(e.data);
+        }
+      };
+
+      dictateRecorder.start();
+      isDictating = true;
+
+      dictateRecordBtn.className = 'btn btn-danger btn-lg btn-glow';
+      dictateRecordBtn.innerHTML = `<span>⏹️ Finish Dictating</span>`;
+      dictateResultText.placeholder = 'Listening... Speak naturally in English, Hindi, or mixed speech.';
+    } catch (err) {
+      console.error('Dictation mic access error:', err);
+      alert('Please allow microphone permissions to use Wispr Voice Dictation.');
+    }
+  }
+
+  async function stopDictation() {
+    if (!isDictating || !dictateRecorder) return;
+
+    dictateRecordBtn.className = 'btn btn-primary btn-lg btn-glow';
+    dictateRecordBtn.innerHTML = `<span>⏳ Polishing & Translating...</span>`;
+    dictateRecordBtn.disabled = true;
+
+    await new Promise((resolve) => {
+      dictateRecorder.onstop = resolve;
+      dictateRecorder.stop();
+    });
+
+    if (dictateStream) {
+      dictateStream.getTracks().forEach((t) => t.stop());
+      dictateStream = null;
+    }
+
+    isDictating = false;
+
+    if (dictateChunks.length === 0) {
+      resetDictateBtn();
+      return;
+    }
+
+    const audioBlob = new Blob(dictateChunks, { type: 'audio/webm' });
+    dictateChunks = [];
+
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'dictation.webm');
+    formData.append('lang', globalLangSelect.value);
+    formData.append('tone', globalToneSelect.value);
+    formData.append('smart_cleanup', globalSmartCleanup.checked ? 'true' : 'false');
+    formData.append('glossary', globalGlossaryInput.value.trim());
+
+    try {
+      const res = await fetch(`${BACKEND_BASE}/api/dictate`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.text) {
+        dictateResultText.value = data.text;
+        dictateOriginalHint.textContent = `Raw transcript: "${data.original}" — Cleaned & Translated into ${data.language}`;
+      } else if (data.error) {
+        alert('Dictation error: ' + data.error);
+      }
+    } catch (err) {
+      console.error('Error submitting dictation:', err);
+      alert('Failed to connect to backend.');
+    } finally {
+      resetDictateBtn();
+    }
+  }
+
+  function resetDictateBtn() {
+    dictateRecordBtn.disabled = false;
+    dictateRecordBtn.className = 'btn btn-primary btn-lg btn-glow';
+    dictateRecordBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg> <span>Start Dictating</span>`;
+  }
+
+  copyDictationBtn.addEventListener('click', () => {
+    const text = dictateResultText.value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      copyDictationBtn.textContent = '✓ Copied!';
+      setTimeout(() => {
+        copyDictationBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy Text`;
+      }, 1800);
+    });
+  });
+
+  // -------------------------------------------------------------
+  // 4. Live Stream Captions Studio Mode
   // -------------------------------------------------------------
   toggleLiveBtn.addEventListener('click', async () => {
     if (isLiveActive) {
@@ -288,6 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function startLiveSession() {
     const targetLang = liveTargetLang.value;
     const sourceType = liveAudioSource.value;
+    const tone = globalToneSelect.value;
+    const smartCleanup = globalSmartCleanup.checked;
+    const glossary = globalGlossaryInput.value.trim();
 
     try {
       if (sourceType === 'mic') {
@@ -304,8 +439,14 @@ document.addEventListener('DOMContentLoaded', () => {
       sourceNode.connect(liveAnalyser);
       drawVisualizer();
 
-      // WebSocket Connection
-      const wsUrl = `${WS_BASE}/ws/translate?lang=${encodeURIComponent(targetLang)}`;
+      // WebSocket Connection with Wispr Flow params
+      const params = new URLSearchParams({
+        lang: targetLang,
+        tone: tone,
+        smart_cleanup: smartCleanup ? 'true' : 'false',
+        glossary: glossary
+      });
+      const wsUrl = `${WS_BASE}/ws/translate?${params.toString()}`;
       liveWebSocket = new WebSocket(wsUrl);
 
       liveWebSocket.onopen = () => {
@@ -400,7 +541,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!liveAnalyser || !audioVisualizer) return;
     const canvas = audioVisualizer;
     
-    // Set actual canvas pixel dimensions to match display size
     if (canvas.offsetWidth && canvas.offsetHeight) {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;

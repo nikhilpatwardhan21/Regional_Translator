@@ -1,4 +1,4 @@
-// background.js - Service Worker for Indian Regional Language Live Captions
+// background.js - Service Worker for Indian Regional Language Live Captions & Wispr Flow Dictation
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 
@@ -6,7 +6,6 @@ async function hasOffscreenDocument() {
   if ('hasDocument' in chrome.offscreen) {
     return await chrome.offscreen.hasDocument();
   }
-  // Fallback for older Chrome versions if needed
   const matchedClients = await clients.matchAll();
   return matchedClients.some(c => c.url.includes(OFFSCREEN_DOCUMENT_PATH));
 }
@@ -36,6 +35,30 @@ async function ensureContentScriptInjected(tabId) {
   }
 }
 
+// 1. Keyboard Shortcut Listener (Alt + Shift + V) for Instant Voice Dictation
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'toggle-dictation') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) return;
+
+    await ensureContentScriptInjected(tab.id);
+    const settings = await chrome.storage.local.get(['lang', 'tone', 'smartCleanup', 'glossary']);
+
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'TOGGLE_DICTATION',
+      settings: {
+        lang: settings.lang || 'hi',
+        tone: settings.tone || 'casual',
+        smartCleanup: settings.smartCleanup !== false,
+        glossary: settings.glossary || ''
+      }
+    }).catch(err => {
+      console.log('Error toggling dictation in tab:', err);
+    });
+  }
+});
+
+// 2. Message Routing
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'START_CAPTURE') {
     handleStartCapture(message).then(sendResponse).catch(err => {
@@ -53,6 +76,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'TRIGGER_DICTATION_FROM_POPUP') {
+    (async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) return { success: false, error: 'No active tab' };
+      await ensureContentScriptInjected(tab.id);
+      const settings = await chrome.storage.local.get(['lang', 'tone', 'smartCleanup', 'glossary']);
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'TOGGLE_DICTATION',
+        settings: {
+          lang: settings.lang || 'hi',
+          tone: settings.tone || 'casual',
+          smartCleanup: settings.smartCleanup !== false,
+          glossary: settings.glossary || ''
+        }
+      });
+      return { success: true };
+    })().then(sendResponse);
+    return true;
+  }
+
   if (message.action === 'CAPTION_RECEIVED') {
     const { data, tabId } = message;
     if (tabId && data) {
@@ -60,22 +103,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         action: 'SHOW_CAPTION',
         original: data.original,
         translated: data.translated
-      }).catch(err => {
-        // Tab might have navigated or closed
-      });
+      }).catch(() => {});
     }
     return false;
   }
 
   if (message.action === 'GET_STATUS') {
-    chrome.storage.local.get(['isCapturing', 'activeTabId', 'lang'], (res) => {
+    chrome.storage.local.get(['isCapturing', 'activeTabId', 'lang', 'tone', 'smartCleanup', 'glossary'], (res) => {
       sendResponse(res);
     });
     return true;
   }
 });
 
-async function handleStartCapture({ lang, tabId }) {
+async function handleStartCapture({ lang, tone, smartCleanup, glossary, tabId }) {
   if (!tabId) {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) throw new Error('No active tab found.');
@@ -103,7 +144,10 @@ async function handleStartCapture({ lang, tabId }) {
   await chrome.storage.local.set({
     isCapturing: true,
     activeTabId: tabId,
-    lang: lang || 'hi'
+    lang: lang || 'hi',
+    tone: tone || 'casual',
+    smartCleanup: smartCleanup !== false,
+    glossary: glossary || ''
   });
 
   // 5. Tell offscreen document to begin recording & audio playback
@@ -111,6 +155,9 @@ async function handleStartCapture({ lang, tabId }) {
     action: 'START_OFFSCREEN_CAPTURE',
     streamId,
     lang: lang || 'hi',
+    tone: tone || 'casual',
+    smartCleanup: smartCleanup !== false,
+    glossary: glossary || '',
     tabId
   });
 
@@ -123,9 +170,7 @@ async function handleStopCapture() {
   // 1. Notify offscreen document to stop capture & WS
   try {
     await chrome.runtime.sendMessage({ action: 'STOP_OFFSCREEN_CAPTURE' });
-  } catch (e) {
-    // Ignore if offscreen doc is not listening
-  }
+  } catch (e) {}
 
   // 2. Notify content script to clear captions overlay
   if (activeTabId) {

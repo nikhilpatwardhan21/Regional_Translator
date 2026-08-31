@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import tempfile
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
@@ -64,6 +64,59 @@ if os.path.exists(frontend_dir):
     app.mount("/studio", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 
+# Helper: Build contextual system prompt supporting Wispr Flow AI Smart Polish, Tone, and Custom Glossary
+def build_translation_system_prompt(
+    target_language_name: str,
+    tone: str = "casual",
+    smart_cleanup: bool = True,
+    glossary: str = "",
+    is_dictation: bool = False,
+) -> str:
+    prompt_parts = [
+        f"You are an expert native AI speech translator and dialogue polish editor for {target_language_name}."
+    ]
+
+    if smart_cleanup:
+        prompt_parts.append(
+            "CRITICAL SMART POLISH: Remove all verbal filler words ('um', 'uh', 'like', 'you know', 'basically', 'matlab', etc.), "
+            "stutters, false starts, and self-corrections (e.g. 'Monday... no, Tuesday at 4' -> translate only 'Tuesday at 4'). "
+            "Output clear, concise, fluent speech."
+        )
+
+    if tone == "formal":
+        prompt_parts.append(
+            f"TONE: Use formal, respectful, and professional vocabulary suitable for business meetings, news, or formal documents in {target_language_name}."
+        )
+    elif tone == "summary":
+        prompt_parts.append(
+            f"TONE: Provide a concise, high-impact bulleted summary of key points translated into {target_language_name}."
+        )
+    else:  # casual / default
+        prompt_parts.append(
+            f"TONE: Use natural spoken-register dialogue in {target_language_name} as spoken in contemporary daily conversation."
+        )
+
+    if glossary and glossary.strip():
+        terms = [t.strip() for t in glossary.split(",") if t.strip()]
+        if terms:
+            prompt_parts.append(
+                f"CUSTOM GLOSSARY / JARGON: Strictly preserve and correctly spell the following domain terms/proper nouns: {', '.join(terms)}."
+            )
+
+    if is_dictation:
+        prompt_parts.append(
+            f"OUTPUT FORMAT: Return ONLY the final polished translated text in {target_language_name} script, formatted with proper punctuation and capitalizations. "
+            "Do NOT include markdown formatting, explanations, quotation marks, or notes."
+        )
+    else:
+        prompt_parts.append(
+            f"OUTPUT FORMAT: Return ONLY the translated sentences in {target_language_name} script. "
+            "Do not include transliterations, notes, or extra markdown."
+        )
+
+    return " ".join(prompt_parts)
+
+
 # Pydantic models for request validation
 class SubtitleSegment(BaseModel):
     id: Optional[int] = None
@@ -82,19 +135,35 @@ class ExportRequest(BaseModel):
 async def root():
     return {
         "status": "ok",
-        "message": "TranslateSub Live Captions Backend",
+        "message": "TranslateSub Live Captions & Wispr Flow Studio Backend",
         "studio_url": "/studio",
     }
 
 
 @app.websocket("/ws/translate")
-async def translate_websocket(websocket: WebSocket, lang: str = "hi"):
+async def translate_websocket(
+    websocket: WebSocket,
+    lang: str = "hi",
+    tone: str = "casual",
+    smart_cleanup: bool = True,
+    glossary: str = "",
+):
     await websocket.accept()
     target_language_name = INDIAN_LANGUAGES.get(lang.lower(), "Hindi")
-    logger.info(f"WebSocket client connected. Target language: {target_language_name} ({lang})")
+    logger.info(
+        f"WebSocket client connected. Lang: {target_language_name} ({lang}), Tone: {tone}, Polish: {smart_cleanup}, Glossary: {glossary}"
+    )
 
     if not client:
         logger.error("GROQ_API_KEY or OPENAI_API_KEY environment variable is missing or empty.")
+
+    system_prompt = build_translation_system_prompt(
+        target_language_name=target_language_name,
+        tone=tone,
+        smart_cleanup=smart_cleanup,
+        glossary=glossary,
+        is_dictation=False,
+    )
 
     try:
         while True:
@@ -116,12 +185,16 @@ async def translate_websocket(websocket: WebSocket, lang: str = "hi"):
                     tmp_file.write(audio_bytes)
                     tmp_path = tmp_file.name
 
-                # 1. Transcribe audio chunk with Whisper
+                # 1. Transcribe audio chunk with Whisper (using glossary as prompt hint if provided)
+                stt_kwargs = {
+                    "model": STT_MODEL,
+                }
+                if glossary and glossary.strip():
+                    stt_kwargs["prompt"] = glossary.strip()
+
                 with open(tmp_path, "rb") as audio_file:
-                    stt_response = await client.audio.transcriptions.create(
-                        model=STT_MODEL,
-                        file=("audio.webm", audio_file),
-                    )
+                    stt_kwargs["file"] = ("audio.webm", audio_file)
+                    stt_response = await client.audio.transcriptions.create(**stt_kwargs)
 
                 transcript_text = getattr(stt_response, "text", "").strip()
 
@@ -133,13 +206,6 @@ async def translate_websocket(websocket: WebSocket, lang: str = "hi"):
                 logger.info(f"[STT Original]: {transcript_text}")
 
                 # 2. Translate text into target Indian language
-                system_prompt = (
-                    f"You are a native spoken dialogue translator. "
-                    f"Translate the following transcript into natural spoken-register {target_language_name}. "
-                    f"Output ONLY the translated text in {target_language_name} script. "
-                    f"Do not include transliterations, notes, context, or quote marks."
-                )
-
                 translation_response = await client.chat.completions.create(
                     model=CHAT_MODEL,
                     messages=[
@@ -179,13 +245,99 @@ async def translate_websocket(websocket: WebSocket, lang: str = "hi"):
         logger.error(f"WebSocket error: {ws_err}")
 
 
+# Wispr Flow Feature: Direct Voice Dictation Endpoint
+@app.post("/api/dictate")
+async def dictate_audio(
+    file: UploadFile = File(...),
+    lang: str = Form("hi"),
+    tone: str = Form("casual"),
+    smart_cleanup: bool = Form(True),
+    glossary: str = Form(""),
+):
+    if not client:
+        return {"error": "GROQ_API_KEY or OPENAI_API_KEY is missing or invalid."}
+
+    target_language_name = INDIAN_LANGUAGES.get(lang.lower(), "Hindi")
+    logger.info(
+        f"[Dictate] Processing speech for {target_language_name} (Tone: {tone}, Polish: {smart_cleanup}, Glossary: {glossary})"
+    )
+
+    content = await file.read()
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".webm"
+    if not ext:
+        ext = ".webm"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp_file:
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+
+        # 1. Transcribe with Whisper
+        stt_kwargs = {"model": STT_MODEL}
+        if glossary and glossary.strip():
+            stt_kwargs["prompt"] = glossary.strip()
+
+        with open(tmp_path, "rb") as audio_file:
+            stt_kwargs["file"] = (file.filename or f"dictate{ext}", audio_file)
+            stt_response = await client.audio.transcriptions.create(**stt_kwargs)
+
+        raw_text = getattr(stt_response, "text", "").strip()
+        if not raw_text:
+            return {"original": "", "text": "", "language": target_language_name}
+
+        # 2. Apply AI Smart Polish and Translation
+        system_prompt = build_translation_system_prompt(
+            target_language_name=target_language_name,
+            tone=tone,
+            smart_cleanup=smart_cleanup,
+            glossary=glossary,
+            is_dictation=True,
+        )
+
+        translation_response = await client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": raw_text},
+            ],
+            temperature=0.2,
+        )
+
+        polished_text = translation_response.choices[0].message.content.strip()
+
+        return {
+            "original": raw_text,
+            "text": polished_text,
+            "language": target_language_name,
+        }
+
+    except Exception as err:
+        logger.error(f"[Dictate] Error: {err}", exc_info=True)
+        return {"error": str(err)}
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
 @app.post("/api/transcribe-file")
-async def transcribe_file(file: UploadFile = File(...), lang: str = Form("hi")):
+async def transcribe_file(
+    file: UploadFile = File(...),
+    lang: str = Form("hi"),
+    tone: str = Form("casual"),
+    smart_cleanup: bool = Form(True),
+    glossary: str = Form(""),
+):
     if not client:
         return {"error": "GROQ_API_KEY or OPENAI_API_KEY environment variable is missing or invalid."}
 
     target_language_name = INDIAN_LANGUAGES.get(lang.lower(), "Hindi")
-    logger.info(f"Processing file upload '{file.filename}' for language {target_language_name}")
+    logger.info(
+        f"Processing file upload '{file.filename}' for language {target_language_name} (Tone: {tone}, Polish: {smart_cleanup})"
+    )
 
     # Check file size
     content = await file.read()
@@ -204,12 +356,16 @@ async def transcribe_file(file: UploadFile = File(...), lang: str = Form("hi")):
 
         # 1. Transcribe with Whisper using verbose_json to retrieve timestamps
         try:
+            stt_kwargs = {
+                "model": STT_MODEL,
+                "response_format": "verbose_json",
+            }
+            if glossary and glossary.strip():
+                stt_kwargs["prompt"] = glossary.strip()
+
             with open(tmp_path, "rb") as audio_file:
-                stt_response = await client.audio.transcriptions.create(
-                    model=STT_MODEL,
-                    file=(file.filename or f"audio{ext}", audio_file),
-                    response_format="verbose_json",
-                )
+                stt_kwargs["file"] = (file.filename or f"audio{ext}", audio_file)
+                stt_response = await client.audio.transcriptions.create(**stt_kwargs)
         except Exception as stt_err:
             logger.error(f"STT API Error ({STT_MODEL}): {stt_err}", exc_info=True)
             return {"error": f"Audio Transcription Failed: {str(stt_err)}"}
@@ -239,11 +395,11 @@ async def transcribe_file(file: UploadFile = File(...), lang: str = Form("hi")):
         if not segment_items:
             return {"segments": []}
 
-        # 3. Batch translate using LLM for speed and context
+        # 3. Batch translate using LLM with Wispr Flow AI Smart Polish & Tone
         texts_to_translate = [item["original"] for item in segment_items]
         system_prompt = (
-            f"You are a professional native dialogue translator for Indian languages. "
-            f"Translate the following list of audio transcript lines into natural spoken-register {target_language_name}. "
+            f"{build_translation_system_prompt(target_language_name, tone, smart_cleanup, glossary, is_dictation=False)} "
+            f"Translate the following JSON list of audio transcript lines into {target_language_name}. "
             f"Return ONLY a JSON array of strings containing the exact translated sentences in target language script, "
             f"matching the order of the input array. Do NOT output markdown code blocks or explanations."
         )

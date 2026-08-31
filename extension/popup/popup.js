@@ -1,9 +1,13 @@
-// popup.js - Interactive controls for Chrome extension popup
+// popup.js - Interactive controls for Chrome extension popup with Wispr Flow settings
 
 document.addEventListener('DOMContentLoaded', () => {
   const langSelect = document.getElementById('langSelect');
+  const toneSelect = document.getElementById('toneSelect');
+  const smartCleanupToggle = document.getElementById('smartCleanupToggle');
+  const glossaryInput = document.getElementById('glossaryInput');
   const toggleBtn = document.getElementById('toggleBtn');
   const btnText = document.getElementById('btnText');
+  const dictateBtn = document.getElementById('dictateBtn');
   const statusBar = document.querySelector('.status-bar');
   const statusText = document.getElementById('statusText');
 
@@ -11,10 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeTabId = null;
 
   // 1. Initialize UI state from storage & service worker
-  chrome.storage.local.get(['lang', 'isCapturing', 'activeTabId'], (res) => {
-    if (res.lang) {
-      langSelect.value = res.lang;
-    }
+  chrome.storage.local.get(['lang', 'tone', 'smartCleanup', 'glossary', 'isCapturing', 'activeTabId'], (res) => {
+    if (res.lang) langSelect.value = res.lang;
+    if (res.tone) toneSelect.value = res.tone;
+    if (res.smartCleanup !== undefined) smartCleanupToggle.checked = res.smartCleanup;
+    if (res.glossary) glossaryInput.value = res.glossary;
+
     if (res.isCapturing) {
       isCapturing = true;
       activeTabId = res.activeTabId;
@@ -28,16 +34,31 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (res) => {
     if (res) {
       if (res.lang) langSelect.value = res.lang;
+      if (res.tone) toneSelect.value = res.tone;
+      if (res.smartCleanup !== undefined) smartCleanupToggle.checked = res.smartCleanup;
+      if (res.glossary) glossaryInput.value = res.glossary;
+
       isCapturing = !!res.isCapturing;
       activeTabId = res.activeTabId || null;
       updateUIState(isCapturing);
     }
   });
 
-  // 2. Handle Language Selection Change
+  // 2. Handle Settings Changes
   langSelect.addEventListener('change', () => {
-    const selectedLang = langSelect.value;
-    chrome.storage.local.set({ lang: selectedLang });
+    chrome.storage.local.set({ lang: langSelect.value });
+  });
+
+  toneSelect.addEventListener('change', () => {
+    chrome.storage.local.set({ tone: toneSelect.value });
+  });
+
+  smartCleanupToggle.addEventListener('change', () => {
+    chrome.storage.local.set({ smartCleanup: smartCleanupToggle.checked });
+  });
+
+  glossaryInput.addEventListener('input', () => {
+    chrome.storage.local.set({ glossary: glossaryInput.value });
   });
 
   // 3. Handle Start/Stop Captions Toggle Button
@@ -65,9 +86,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const selectedLang = langSelect.value;
       chrome.runtime.sendMessage(
-        { action: 'START_CAPTURE', lang: selectedLang, tabId: activeTab.id },
+        {
+          action: 'START_CAPTURE',
+          lang: langSelect.value,
+          tone: toneSelect.value,
+          smartCleanup: smartCleanupToggle.checked,
+          glossary: glossaryInput.value,
+          tabId: activeTab.id
+        },
         (res) => {
           toggleBtn.disabled = false;
           if (res && res.success) {
@@ -82,6 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 4. Handle Voice Dictation Button
+  dictateBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'TRIGGER_DICTATION_FROM_POPUP' }, () => {
+      window.close(); // Close popup so user can focus on the webpage input
+    });
+  });
+
   function updateUIState(capturing) {
     if (capturing) {
       toggleBtn.className = 'btn btn-danger';
@@ -90,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusText.textContent = 'Capturing Audio & Streaming...';
     } else {
       toggleBtn.className = 'btn btn-primary';
-      btnText.textContent = 'Start Captions';
+      btnText.textContent = 'Start Tab Captions';
       statusBar.classList.remove('active');
       statusText.textContent = 'Ready';
     }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Indian Regional Language Live Captions",
-  "version": "1.0.0",
-  "description": "Real-time audio tab capture with speech translation into Indian regional languages.",
+  "name": "Regional Translator & Wispr Flow Dictation",
+  "version": "1.1.0",
+  "description": "Live tab audio captions & AI voice-to-text dictation into Indian regional languages.",
   "permissions": [
     "tabCapture",
     "offscreen",
@@ -18,7 +18,15 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Regional Live Captions"
+    "default_title": "Regional Captions & Dictation"
+  },
+  "commands": {
+    "toggle-dictation": {
+      "suggested_key": {
+        "default": "Alt+Shift+V"
+      },
+      "description": "Toggle Voice Dictation & Typing"
+    }
   },
   "content_scripts": [
     {

@@ -303,6 +303,168 @@ body {
   margin: 0 auto;
 }
 
+.badge-flow {
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.8px;
+}
+
+/* Wispr Flow Global AI Settings Bar */
+.wispr-settings-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 24px;
+  margin: 24px auto 0;
+  max-width: 900px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  text-align: left;
+}
+
+.wispr-setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.wispr-setting-item.flex-2 {
+  flex: 1.6;
+}
+
+.wispr-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.wispr-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.input-sm {
+  background: #1E293B;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+}
+
+.input-sm:focus {
+  border-color: #6366F1;
+}
+
+/* Wispr Toggle Switch */
+.toggle-track {
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background: #334155;
+  border-radius: 20px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.toggle-indicator {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked + .toggle-track {
+  background: #6366F1;
+}
+
+input[type="checkbox"]:checked + .toggle-track .toggle-indicator {
+  transform: translateX(16px);
+}
+
+.wispr-label input[type="checkbox"] {
+  display: none;
+}
+
+/* Dictation Studio Mode */
+.dictate-container {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.dictate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.dictate-output-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dictate-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dictate-box-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dictate-textarea {
+  width: 100%;
+  height: 180px;
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+
+.dictate-orig-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+}
+
 /* Main Container */
 .main-container {
   max-width: 1400px;

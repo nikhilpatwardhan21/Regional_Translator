@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Regional Live Captions</title>
+  <title>Regional Captions & Dictation</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -18,8 +18,8 @@
         </svg>
       </div>
       <div>
-        <h1 class="title">Regional Captions</h1>
-        <p class="subtitle">Live tab translation</p>
+        <h1 class="title">Regional AI Flow</h1>
+        <p class="subtitle">Captions & Voice Dictation</p>
       </div>
     </div>
 
@@ -47,11 +47,43 @@
       </div>
     </div>
 
-    <!-- Toggle Action Button -->
-    <button id="toggleBtn" class="btn btn-primary">
-      <span class="btn-icon"></span>
-      <span id="btnText">Start Captions</span>
-    </button>
+    <!-- Wispr Flow AI Settings -->
+    <div class="form-row-2">
+      <div class="form-group flex-1">
+        <label for="toneSelect">Tone</label>
+        <div class="select-wrapper">
+          <select id="toneSelect">
+            <option value="casual" selected>Natural</option>
+            <option value="formal">Formal</option>
+            <option value="summary">Summary</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group flex-1">
+        <label>AI Polish</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="smartCleanupToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Custom Glossary -->
+    <div class="form-group">
+      <label for="glossaryInput">Custom Glossary</label>
+      <input type="text" id="glossaryInput" placeholder="e.g. Aadhaar, UPI, Nikhil" class="text-input">
+    </div>
+
+    <!-- Main Action Buttons -->
+    <div class="button-group">
+      <button id="toggleBtn" class="btn btn-primary">
+        <span id="btnText">Start Tab Captions</span>
+      </button>
+      <button id="dictateBtn" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+        <span>Dictate to Input (Alt+Shift+V)</span>
+      </button>
+    </div>
   </div>
 
   <script src="popup.js"></script>
