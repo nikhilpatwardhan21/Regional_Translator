@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Regional Live Captions</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-card">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-container">
+        <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="22"></line>
+        </svg>
+      </div>
+      <div>
+        <h1 class="title">Regional Captions</h1>
+        <p class="subtitle">Live tab translation</p>
+      </div>
+    </div>
+
+    <!-- Status Badge -->
+    <div class="status-bar">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">Ready</span>
+    </div>
+
+    <!-- Target Language Selection -->
+    <div class="form-group">
+      <label for="langSelect">Target Language</label>
+      <div class="select-wrapper">
+        <select id="langSelect">
+          <option value="hi">Hindi (हिंदी)</option>
+          <option value="mr">Marathi (मराठी)</option>
+          <option value="ta">Tamil (தமிழ்)</option>
+          <option value="te">Telugu (తెలుగు)</option>
+          <option value="kn">Kannada (ಕನ್ನಡ)</option>
+          <option value="bn">Bengali (বাংলা)</option>
+          <option value="gu">Gujarati (ગુજરાતી)</option>
+          <option value="ml">Malayalam (മലയാളം)</option>
+          <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Toggle Action Button -->
+    <button id="toggleBtn" class="btn btn-primary">
+      <span class="btn-icon"></span>
+      <span id="btnText">Start Captions</span>
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

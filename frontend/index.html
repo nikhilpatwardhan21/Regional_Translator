@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TranslateSub - AI Video Subtitle Generator & Live Regional Translator</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Navbar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Translate<span class="brand-accent">Sub</span></span>
+          <span class="brand-tag">Regional Studio</span>
+        </div>
+      </div>
+
+      <!-- Studio Mode Nav Pills -->
+      <div class="nav-pills">
+        <button id="pillFileStudio" class="nav-pill active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          Video & File Subtitler
+        </button>
+        <button id="pillLiveStudio" class="nav-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          Live Stream Captions
+        </button>
+      </div>
+
+      <!-- Language & Controls -->
+      <div class="nav-actions">
+        <div class="lang-selector-group">
+          <span class="lang-label">Target:</span>
+          <select id="globalLangSelect" class="lang-select">
+            <option value="hi" selected>Hindi (हिंदी)</option>
+            <option value="mr">Marathi (मराठी)</option>
+            <option value="ta">Tamil (தமிழ்)</option>
+            <option value="te">Telugu (తెలుగు)</option>
+            <option value="kn">Kannada (ಕನ್ನಡ)</option>
+            <option value="bn">Bengali (বাংলা)</option>
+            <option value="gu">Gujarati (ગુજરાતી)</option>
+            <option value="ml">Malayalam (മലയാളം)</option>
+            <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+          </select>
+        </div>
+
+        <button id="extModalBtn" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          Chrome Extension
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Header -->
+  <section class="hero-section">
+    <div class="container text-center">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span> Powered by OpenAI Whisper & GPT-4o-mini
+      </div>
+      <h1 class="hero-title">Translate & Subtitle Any Video into <span class="gradient-text">Indian Regional Languages</span></h1>
+      <p class="hero-subtitle">Generate SRT/VTT subtitles for videos, edit timestamps online, or stream live real-time captions directly in your browser.</p>
+    </div>
+  </section>
+
+  <!-- Main Content Container -->
+  <main class="main-container">
+
+    <!-- MODE 1: FILE SUBTITLE STUDIO -->
+    <section id="fileStudioMode" class="studio-section active">
+      <!-- Upload Dropzone -->
+      <div id="dropzone" class="dropzone-card">
+        <input type="file" id="fileInput" accept="video/*,audio/*" class="file-input-hidden">
+        <div class="dropzone-content">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <h3>Drag and drop your audio or video file here</h3>
+          <p class="dropzone-hint">Supports MP4, WebM, MP3, WAV, M4A up to 100MB</p>
+          <button type="button" id="browseBtn" class="btn btn-primary btn-glow">
+            Browse File
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading / Processing Card -->
+      <div id="processingCard" class="card processing-card hidden">
+        <div class="spinner"></div>
+        <div class="processing-info">
+          <h4 id="processingStatusTitle">Transcribing & Translating...</h4>
+          <p id="processingStatusDesc">Whisper is extracting speech timestamps while GPT-4o-mini translates into your selected regional language.</p>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Studio Dual Pane Workspace -->
+      <div id="workspaceGrid" class="workspace-grid hidden">
+
+        <!-- Left Pane: Media Player & Synchronized Overlay -->
+        <div class="media-pane card">
+          <div class="pane-header">
+            <div class="pane-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+              Media Preview
+            </div>
+            <span id="fileNameBadge" class="badge">video.mp4</span>
+          </div>
+
+          <div class="player-wrapper">
+            <video id="mediaPlayer" controls crossorigin="anonymous"></video>
+            <!-- Synchronized On-Player Subtitle Overlay -->
+            <div id="playerSubtitleOverlay" class="player-subtitle-overlay hidden">
+              <div id="playerSubTranslated" class="sub-translated">...</div>
+              <div id="playerSubOriginal" class="sub-original">...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Pane: Interactive Subtitle Editor -->
+        <div class="editor-pane card">
+          <div class="pane-header">
+            <div class="pane-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              Subtitle Editor (<span id="segmentCount">0</span> segments)
+            </div>
+            <div class="editor-actions">
+              <select id="exportFormatSelect" class="select-sm">
+                <option value="srt">SRT Subtitles</option>
+                <option value="vtt">WebVTT</option>
+                <option value="txt">Plain Text</option>
+              </select>
+              <button id="downloadSubBtn" class="btn btn-sm btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download
+              </button>
+            </div>
+          </div>
+
+          <div class="search-bar-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="searchInput" placeholder="Search original or translated subtitles..." class="search-input">
+          </div>
+
+          <div id="segmentList" class="segment-list">
+            <!-- Dynamically populated subtitle cards -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODE 2: LIVE STREAM CAPTIONS STUDIO -->
+    <section id="liveStudioMode" class="studio-section">
+      <div class="live-studio-container card">
+        <div class="live-header">
+          <div>
+            <h2>Live Audio Streaming Studio</h2>
+            <p class="text-muted">Speak into your microphone or play browser tab audio to see real-time regional captions.</p>
+          </div>
+          <div class="live-status-badge" id="liveStatusBadge">
+            <span class="status-dot"></span>
+            <span id="liveStatusText">Disconnected</span>
+          </div>
+        </div>
+
+        <div class="live-controls">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Audio Input Source</label>
+              <select id="liveAudioSource" class="select-input">
+                <option value="mic">Microphone Input</option>
+                <option value="tab">Display / Tab Capture</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Target Language</label>
+              <select id="liveTargetLang" class="select-input">
+                <option value="hi">Hindi (हिंदी)</option>
+                <option value="mr">Marathi (मराठी)</option>
+                <option value="ta">Tamil (தமிழ்)</option>
+                <option value="te">Telugu (తెలుగు)</option>
+                <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                <option value="bn">Bengali (বাংলা)</option>
+                <option value="gu">Gujarati (ગુજરાતી)</option>
+                <option value="ml">Malayalam (മലയാളം)</option>
+                <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="toggleLiveBtn" class="btn btn-primary btn-lg btn-glow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+            Start Live Session
+          </button>
+        </div>
+
+        <!-- Audio Waveform Visualizer Canvas -->
+        <div class="visualizer-container">
+          <canvas id="audioVisualizer"></canvas>
+        </div>
+
+        <!-- Live Subtitle Stream Timeline -->
+        <div class="live-feed-header">
+          <h3>Real-time Subtitle Feed</h3>
+          <button id="clearLiveFeedBtn" class="btn btn-xs btn-outline">Clear Feed</button>
+        </div>
+
+        <div id="liveFeedTimeline" class="live-feed-timeline">
+          <div class="feed-empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+            <p>Click "Start Live Session" and speak to stream real-time translated captions.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Chrome Extension Showcase Modal -->
+  <div id="extModal" class="modal-backdrop hidden">
+    <div class="modal-card card">
+      <div class="modal-header">
+        <h3>Chrome Extension (Manifest V3)</h3>
+        <button id="closeExtModalBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>TranslateSub includes a Manifest V3 browser extension for continuous real-time audio tab capture on YouTube, Netflix, or foreign broadcasts.</p>
+
+        <div class="feature-highlights">
+          <div class="highlight-item">
+            <span class="highlight-num">1</span>
+            <div>
+              <strong>Audio Pass-Through Loopback</strong>
+              <p>Re-routes tab audio to speakers so video playback never mutes.</p>
+            </div>
+          </div>
+          <div class="highlight-item">
+            <span class="highlight-num">2</span>
+            <div>
+              <strong>On-Page Floating Overlay</strong>
+              <p>Renders sleek glassmorphic captions on any webpage with auto-fading.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <a href="../extension/manifest.json" download class="btn btn-outline">View Manifest</a>
+          <button id="gotItBtn" class="btn btn-primary">Got It</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
